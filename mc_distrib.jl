@@ -91,7 +91,8 @@ function loglikelyhood(mc_class::mcmc_matr_mod)
   func = param_fonc(mc_class)
   x = mc_class.x
   y = mc_class.y
-  
+
+  # je sais techniquement c'est pas une fonction lambda vus qu'elle a un nom mais je sais pas faire des fonctions lambda de plusieurs lignes donc on va ignorer ça
   function loglik(param)
     nclasses = size(x,1)
     nyears = size(x,2)
@@ -123,7 +124,6 @@ function loglikelyhood(mc_class::mcmc_matr_mod)
       # find all combination of fecundities and transitions that give size in y
       
       combi_tot = expand_grid(vcat(fecond_max_year[(class-1)*nclasses .+ Base.oneto(nclasses), year], trans_max_year[(class-1)*nclasses .+ Base.oneto(nclasses), year]), y[class,year])
-      # combi_tot = expand_grid_2_3(vcat(fecond_max_year[(class-1)*nclasses .+ Base.oneto(nclasses), year], x[:, year]), y[class,year])
 
       nposs = size(combi_tot,1)
 
