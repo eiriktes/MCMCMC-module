@@ -5,7 +5,7 @@ mutable struct mcmcmc_chain
 end
 
 struct mcmcmc_initial
-  distrib_class
+  data
   chains
   succes::Vector{Float64}
   probas::Vector{Float64}
@@ -18,9 +18,10 @@ struct mcmcmc_initial
 end
 
 struct mcmcmc_result
-  distrib_class
+  data
   succes::Vector{Float64}
   chain_nb::Vector{UInt8}
+  iter_nb::Vector{UInt32}
   etat::Vector{String}
   modeles::Matrix{Float64}
   valide::Vector{Bool}
@@ -28,11 +29,11 @@ struct mcmcmc_result
   fixed
 end
 
-function mcmcmc_init(distrib_class, start_parameters, x, y, n_chains = 10, fixed = nothing)
+function mcmcmc_init(data, start_parameters, n_chains = 10, fixed = nothing)
   fixed = isnothing(fixed) ? nothing : Bool.(fixed)
   nchaud = n_chains > 30 ? 10 : [1,1,1,1,2,2,2,3,3,3,4,4,5,5,5,6,6,6,7,7,7,7,8,8,8,8,9,9,9,10][n_chains] 
 
-  loglik = loglikelyhood(distrib_class, y, x, param_fonc(distrib_class, x))
+  loglik = loglikelyhood(data)
 
   if !isa(start_parameters, VecOrMat)
     error("start_parameters should be a matrix or vector")
@@ -51,18 +52,27 @@ function mcmcmc_init(distrib_class, start_parameters, x, y, n_chains = 10, fixed
     chains[chain] = mcmcmc_chain(start_parameters[:,chain], loglik(start_parameters[:,chain]), "froid")
   end
 
-  mcmcmc_initial(distrib_class, chains, getfield.(chains, :succes_actu), zeros(n_chains),  Vector(Base.oneto(n_chains)), getfield.(chains, :etat), start_parameters, nchaud, fixed, loglik)
+  mcmcmc_initial(data, chains, getfield.(chains, :succes_actu), zeros(n_chains),  Vector(Base.oneto(n_chains)), getfield.(chains, :etat), start_parameters, nchaud, fixed, loglik)
 end
 
 
 
 function mcmcmc_iters(init, n_iter = 1000)
+  
+  # parametre de mcmc
   chains = init.chains
   n_chains = length(chains)
   n_estim = n_iter*n_chains
   n_param = size(init.modeles, 1)
-  distrib_class = init.distrib_class
+  data = init.data
 
+  # calc_logl = Vector{Number}(undef,n_estim)
+  # calc_modif = Vector{Number}(undef,n_estim)
+  # calc_proba = Vector{Number}(undef,n_estim)
+  # calc_chain = Vector{Number}(undef,n_estim)
+  # calc_iter = Vector{Number}(undef,n_estim)
+
+  # vecteurs de resultats
   modeles = zeros(n_param, n_estim + n_chains)
   modeles[:, 1:n_chains] = init.modeles
   valide = falses(n_estim + n_chains)
@@ -71,19 +81,24 @@ function mcmcmc_iters(init, n_iter = 1000)
   succes[1:n_chains] = init.succes
   chain_nb = zeros(n_estim + n_chains)
   chain_nb[1:n_chains] = init.chain_nb
+  iter_nb = zeros(n_estim + n_chains)
+  iter_nb[1:n_chains] .= 0
   etat = Vector{String}(undef, n_estim + n_chains)
   etat[1:n_chains] = init.etat
 
+  # initialisation des mcmc
   init.nb_chaud
   chains = init.chains
   width = 0.1
-  modifier = modification(n_param,width, distrib_class)
+  modifier = modification(n_param,width, data)
   #time_t <- Sys.time()
   last_it = 0
   choice = rand(n_iter*n_chains)
 
   for i in Base.oneto(n_iter)
-    if rem(i,floor(n_iter/10))==0
+
+    # suivis de avancement du calcul
+    if rem(i,floor(n_iter/20))==0
       println(i)
       # cat(paste("iteration : ",i,"\n",sep = ""))
       # cat("Expected end :", as.character(Sys.time() + ((Sys.time() - time_t)/floor(n_iter/10)) * (n_iter - i)), "\n")
@@ -94,20 +109,38 @@ function mcmcmc_iters(init, n_iter = 1000)
       acc_rate = sum(valide[1:(i)*n_chains])/(i*n_chains) # a verifier
       last_it = i
       width = width * exp(1 * (acc_rate - 0.44))
-      modifier = modification(n_param,width,distrib_class)
+      modifier = modification(n_param,width,data)
     end
+
+    # changement des chaines
     for chain in Base.oneto(length(chains))
+      # calc_chain[(i-1)*n_chains + chain] = chain
+      # calc_iter[(i-1)*n_chains + chain] = i
+
       # cree un nouveau modele et regarde sa likelyhood
+      # test = @timed modifier(chains[chain].param_actu, chains[chain].etat)
+      # modif = test.value
+      #calc_modif[(i-1)*n_chains + chain] = test.time
+
+      
       modif = modifier(chains[chain].param_actu, chains[chain].etat)
       new_param = isnothing(init.fixed) ? modif : ifelse.(init.fixed, chains[chain].param_actu, modif)
       
+      # test = @timed init.loglikelyhood(new_param)
+      # valeur = test.value
+      # calc_logl[(i-1)*n_chains + chain] = test.time
       valeur = init.loglikelyhood(new_param)
+
+
       if isnan(valeur) || ismissing(valeur)
         valeur = -Inf
       end
       
-      
-      proba = metropolis_log(chains[chain].succes_actu, valeur) # matropolis vus que probas de x -> x´ et x´ -> x est la même
+      # test = @timed metropolis_log(chains[chain].succes_actu, valeur) # metropolis vus que probas de x -> x´ et x´ -> x est la même
+      # calc_proba[(i-1)*n_chains + chain] = test.time
+      # proba = test.value
+
+      proba = metropolis_log(chains[chain].succes_actu, valeur) # metropolis vus que probas de x -> x´ et x´ -> x est la même
       
       if isnan(proba) || ismissing(proba)
         proba = 0
@@ -118,9 +151,11 @@ function mcmcmc_iters(init, n_iter = 1000)
         chains[chain].succes_actu = valeur
         valide[i*n_chains + chain] = true
       end
+
       succes[i*n_chains + chain] = valeur
       modeles[:,i*n_chains + chain] = new_param
       chain_nb[i*n_chains + chain] = chain
+      iter_nb[i*n_chains + chain] = i
     end
     
     #les chaines avec le succes le plus eleve (proba ou likelyhood) deviennent des chaines chaudes
@@ -135,6 +170,6 @@ function mcmcmc_iters(init, n_iter = 1000)
     
   end
 
-  mcmcmc_result(distrib_class, succes, chain_nb, etat, modeles, valide, init.nb_chaud, init.fixed)
-  
+  return mcmcmc_result(data, succes, chain_nb, iter_nb, etat, modeles, valide, init.nb_chaud, init.fixed)
+  #return (calc_logl, calc_modif, calc_proba, calc_chain, calc_iter)
 end
