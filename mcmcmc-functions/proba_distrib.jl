@@ -62,7 +62,7 @@ end
 function dnorm(x, mean, sd)
   # log(1/(sd*sqrt(2*π)) * exp(-1/2 * ((x-mean)/sd)^2))
   # log(sd) + log(sqrt(2*π)) + -1/2 * (x-mean)^2/sd^2
-  - log(sd) - 0.9189385332046727 - 1/2 * ((x-mean)/sd)^2 # ~ 2* plus vite que premiere ligne
+  - log(sd) - 0.9189385332046727 - 1/2 * ((x-mean)/(sd))^2 # ~ 2* plus vite que premiere ligne
 end
 
 

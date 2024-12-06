@@ -195,7 +195,7 @@ function loglikelyhood(mc_class::mcmc_matr_mod)
       # test_prob = @timed sum(hcat(dpois.(combi_tot[:, 1:nclasses], reshape(lambda, 1, :)), dbinom.(combi_tot[:, nclasses+1:nclasses^2], reshape(x[:, year], 1, :), reshape(matr_mod[2][:, class], 1, :))), dims = 2)
       # likelyhood_possib = test_prob.value
       # probt += test_prob.time
-      likelyhood_possib = sum(hcat(dpois.(combi_tot[:, 1:nclasses], lambda), dbinom.(combi_tot[:, nclasses+1:nclasses^2], reshape(x[:, year], 1, nclasses), reshape(matr_mod[2][class, :], 1, nclasses))), dims = 2)
+      likelyhood_possib = sum(hcat(dpois.(combi_tot[:, 1:nclasses], lambda), dbinom.(combi_tot[:, nclasses+1:(2*nclasses)], reshape(x[:, year], 1, nclasses), reshape(matr_mod[2][class, :], 1, nclasses))), dims = 2)
       # sort!(likelyhood_possib, rev = true)
 
       # test_logsum = @timed likelyhood_possib[1]
@@ -234,3 +234,14 @@ function loglikelyhood(mc_class::mcmc_matr_mod)
   end
   loglik
 end
+
+
+
+function flat_prior(mc_class::mcmc_matr_mod)
+  function returnf(param)
+    # normal distrib for each parameters with variance of 2
+    sum(.- (log.(4.) .+ 1.1447298858494002) ./2 .- (param).^2/(4.))
+  end
+  returnf
+end
+

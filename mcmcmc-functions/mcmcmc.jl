@@ -9,7 +9,7 @@ mutable struct mcmcmc_chain
 end
 
 struct mcmcmc_initial
-  data
+  data::mcmc_data
   chains::Vector{mcmcmc_chain}
   succes::Vector{Float64}
   probas::Vector{Float64}
@@ -20,10 +20,11 @@ struct mcmcmc_initial
   fixed
   loglikelyhood::Function
   transformer::Function
+  prior::Function
 end
 
 struct mcmcmc_result
-  data
+  data::mcmc_data
   succes::Vector{Float64}
   chain_nb::Vector{UInt8}
   iter_nb::Vector{UInt32}
@@ -34,14 +35,19 @@ struct mcmcmc_result
   fixed
 end
 
-function mcmcmc_init(data, start_parameters, n_chains = 10, fixed = nothing)
+function mcmcmc_init(data::mcmc_data, start_parameters, n_chains = 10, fixed = nothing, prior = nothing)
   nchaud = n_chains > 30 ? 10 : [1,1,1,1,2,2,2,3,3,3,4,4,5,5,5,6,6,6,7,7,7,7,8,8,8,8,9,9,9,10][n_chains] 
 
   transformer = param_transform(data, fixed)
   loglik = loglikelyhood(data)
+  prior_fun = isnothing(prior) ? flat_prior(data) : prior
 
   if !isa(start_parameters, VecOrMat)
     error("start_parameters should be a matrix or vector")
+  end
+
+  if !isnothing(fixed)
+    error("not ready")
   end
 
   # if !isnothing(fixed)
@@ -64,11 +70,11 @@ function mcmcmc_init(data, start_parameters, n_chains = 10, fixed = nothing)
   
   chains = Vector{mcmcmc_chain}(undef, n_chains)
   
-  for chain in Base.oneto(length(chains))
-    chains[chain] = mcmcmc_chain(start_parameters[:,chain], loglik(transformer(start_parameters[:,chain])), "froid")
+  for chain in Base.oneto(n_chains)
+    chains[chain] = mcmcmc_chain(start_parameters[:,chain], loglik(transformer(start_parameters[:,chain])) .+ prior_fun(start_parameters[:,chain]), "froid")
   end
 
-  mcmcmc_initial(data, chains, getfield.(chains, :succes_actu), zeros(n_chains),  Vector(Base.oneto(n_chains)), getfield.(chains, :etat), start_parameters, nchaud, fixed, loglik, transformer)
+  mcmcmc_initial(data, chains, getfield.(chains, :succes_actu), zeros(n_chains),  Vector(Base.oneto(n_chains)), getfield.(chains, :etat), start_parameters, nchaud, fixed, loglik, transformer, prior_fun)
 end
 
 
@@ -156,7 +162,7 @@ function mcmcmc_iters(init, n_iter = 1000)
       # test = @timed init.loglikelyhood(new_param)
       # valeur = test.value
       # calc_logl[(i-1)*n_chains + chain] = test.time
-      valeur = init.loglikelyhood(transformed)
+      valeur = init.loglikelyhood(transformed) #+ init.prior(new_param)
 
 
       if isnan(valeur) || ismissing(valeur)

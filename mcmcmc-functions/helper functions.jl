@@ -6,7 +6,7 @@ function logspace_add!(matr, logy, index::CartesianIndex)
   # maxv = max(matr[index],logy)
   # minv = min(matr[index],logy)
   # matr[index] = maxv + log1p(exp(minv - maxv ))
-   matr[index] = max(matr[index],logy) + log1p(exp(- abs(matr[index] - logy) ))
+  matr[index] = max(matr[index],logy) + log1p(exp(- abs(matr[index] - logy) ))
 end
 
 # confiance
@@ -14,8 +14,12 @@ end
 #   matr[index] = matr[index] + log1p(exp(logy - matr[index] ))
 # end
 
+# taylor series de wolfram at x = 0.5
+# log1m(x) = -0.693147 - 2 (x - 0.5) - 2 (x - 0.5)^2 - 2.66667 (x - 0.5)^3 - 4 (x - 0.5)^4 - 6.4 (x - 0.5)^5
 
 inv_logit(eta) = exp(eta) / (1 + exp(eta))
+log_inv_logit(eta) = eta - log1p(exp(eta))
+log_rev_inv_logit(eta) =  - log1p(exp(eta))
 
 
 function expand_grid(list,value)
