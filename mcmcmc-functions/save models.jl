@@ -3,7 +3,7 @@ function save_mc_model(resultat::mcmcmc_result, filename::String)
     nchains = length(unique(resultat.chain_nb))
     niter = Int((length(resultat.valide)/nchains)-1)
     text = "$nchains chains for $niter iteration
-$(convert(Int16 ,resultat.nb_chaud)) hot chains
+$(convert(Int16 ,resultat.nb_cold)) cold chains
 model of type $(typeof(resultat.data))
 ratio valide = $(sum(resultat.valide)/length(resultat.valide))\n
 fixed ::$(resultat.fixed)
@@ -24,7 +24,7 @@ function load_mc_model(filename::String)
     println(split(text, "\n\n")[1])  
     model = split(split(text, "\n\n")[2], "\n")
 
-    nb_chaud = convert(UInt8, eval(Meta.parse(split(split(text,"\n")[1], " ")[1])))
+    nb_cold = convert(UInt8, eval(Meta.parse(split(split(text,"\n")[1], " ")[1])))
 
     fixed = eval(Meta.parse(split(model[1],"::")[2]))
     succes = eval(Meta.parse(split(model[2],"::")[2]))
@@ -35,5 +35,5 @@ function load_mc_model(filename::String)
     valide = eval(Meta.parse(split(model[7],"::")[2]))
     data = eval(Meta.parse(split(model[8],"::")[2]))
 
-    mcmcmc_result(data, succes, chain_nb, iter_nb, etat, modeles, valide, nb_chaud, fixed)
+    mcmcmc_result(data, succes, chain_nb, iter_nb, etat, modeles, valide, nb_cold, fixed)
 end

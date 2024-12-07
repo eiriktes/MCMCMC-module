@@ -253,8 +253,6 @@ function read_mark_input(filename::AbstractString)
         if no_title
             error("no title in file")
         end
-        (nocc,ngroup)
-        (histories, group_nb)
 
         hist = BitMatrix(undef, (sum(group_nb), nocc))
         group = Vector{Int}(undef, sum(group_nb))
@@ -269,5 +267,3 @@ function read_mark_input(filename::AbstractString)
         (hist, group)
     end  
 end 
-
-test = read_mark_input("C:/Users/eirik/Documents/UNI/NTNU/these/documentation/MARK book/mark001.inp")

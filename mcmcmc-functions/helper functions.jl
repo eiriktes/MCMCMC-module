@@ -65,7 +65,7 @@ function thinning(res::mcmcmc_result, out_length, start = 0)
     thinning[i] = any(res.iter_nb[i] .== thinned_i)
   end
 
-  mcmcmc_result(res.data, res.succes[thinning], res.chain_nb[thinning], res.iter_nb[thinning], res.etat[thinning], res.modeles[:,thinning], res.valide[thinning], res.nb_chaud, res.fixed)
+  mcmcmc_result(res.data, res.succes[thinning], res.chain_nb[thinning], res.iter_nb[thinning], res.etat[thinning], res.modeles[:,thinning], res.valide[thinning], res.nb_cold, res.fixed)
   
 end
 
@@ -78,6 +78,6 @@ function sel_chains(res::mcmcmc_result, chains)
     is_sel[i] = any(res.chain_nb[i] .== chains)
   end
 
-  mcmcmc_result(res.data, res.succes[is_sel], res.chain_nb[is_sel], res.iter_nb[is_sel], res.etat[is_sel], res.modeles[:,is_sel], res.valide[is_sel], res.nb_chaud, res.fixed)
+  mcmcmc_result(res.data, res.succes[is_sel], res.chain_nb[is_sel], res.iter_nb[is_sel], res.etat[is_sel], res.modeles[:,is_sel], res.valide[is_sel], res.nb_cold, res.fixed)
   
 end

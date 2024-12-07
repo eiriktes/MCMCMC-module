@@ -1,6 +1,3 @@
-# a ajouter :
-# struct mcmcmc_initial{T<:Abstractmcmc}
-#   data::T
 
 mutable struct mcmcmc_chain
   param_actu::Vector{Float64}
@@ -16,7 +13,7 @@ struct mcmcmc_initial
   chain_nb::Vector{UInt8}
   etat::Vector{String}
   modeles::Matrix{Float64}
-  nb_chaud::UInt8
+  nb_cold::UInt8
   fixed
   loglikelyhood::Function
   transformer::Function
@@ -31,12 +28,12 @@ struct mcmcmc_result
   etat::Vector{String}
   modeles::Matrix{Float64}
   valide::Vector{Bool}
-  nb_chaud::UInt8
+  nb_cold::UInt8
   fixed
 end
 
 function mcmcmc_init(data::mcmc_data, start_parameters, n_chains = 10, fixed = nothing, prior = nothing)
-  nchaud = n_chains > 30 ? 10 : [1,1,1,1,2,2,2,3,3,3,4,4,5,5,5,6,6,6,7,7,7,7,8,8,8,8,9,9,9,10][n_chains] 
+  ncold = n_chains > 25 ? 5 : [1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4][n_chains] 
 
   transformer = param_transform(data, fixed)
   loglik = loglikelyhood(data)
@@ -71,10 +68,10 @@ function mcmcmc_init(data::mcmc_data, start_parameters, n_chains = 10, fixed = n
   chains = Vector{mcmcmc_chain}(undef, n_chains)
   
   for chain in Base.oneto(n_chains)
-    chains[chain] = mcmcmc_chain(start_parameters[:,chain], loglik(transformer(start_parameters[:,chain])) .+ prior_fun(start_parameters[:,chain]), "froid")
+    chains[chain] = mcmcmc_chain(start_parameters[:,chain], loglik(transformer(start_parameters[:,chain])) + prior_fun(start_parameters[:,chain]), "chaud")
   end
 
-  mcmcmc_initial(data, chains, getfield.(chains, :succes_actu), zeros(n_chains),  Vector(Base.oneto(n_chains)), getfield.(chains, :etat), start_parameters, nchaud, fixed, loglik, transformer, prior_fun)
+  mcmcmc_initial(data, chains, getfield.(chains, :succes_actu), zeros(n_chains),  Vector(Base.oneto(n_chains)), getfield.(chains, :etat), start_parameters, ncold, fixed, loglik, transformer, prior_fun)
 end
 
 
@@ -109,7 +106,7 @@ function mcmcmc_iters(init, n_iter = 1000)
   etat[1:n_chains] = init.etat
 
   # initialisation des mcmc
-  accrateObjective = (0.44*n_chains-(n_chains-init.nb_chaud)*0.33)/init.nb_chaud
+  accrateObjective = (0.44*n_chains-(n_chains-init.nb_cold)*0.33)/init.nb_cold
   chains = init.chains
   width = [repeat([0.5], n_chains), repeat([0.1], n_chains)] # width[1] for individual width for cold chains, width[2] for hot chains
   modifier = modification(n_param, data)
@@ -134,8 +131,8 @@ function mcmcmc_iters(init, n_iter = 1000)
           chain_index = (chain_nb .== chain) .& (iter_nb .< i) .& (iter_nb .>= i-200)
           acc_rate_cold = sum(valide[chain_index][etat[chain_index] .== "froid"])/sum(etat[chain_index] .== "froid")
           acc_rate_hot = sum(valide[chain_index][etat[chain_index] .== "chaud"])/sum(etat[chain_index] .== "chaud")
-          width[1][chain] = width[1][chain] * exp(ifelse(isfinite(acc_rate_cold), acc_rate_cold, 0.33) - 0.33)
-          width[2][chain] = width[2][chain] * exp(ifelse(isfinite(acc_rate_hot), acc_rate_hot, accrateObjective) - accrateObjective)
+          width[1][chain] = width[1][chain] * exp(ifelse(isfinite(acc_rate_hot), acc_rate_hot, 0.33) - 0.33)
+          width[2][chain] = width[2][chain] * exp(ifelse(isfinite(acc_rate_cold), acc_rate_cold, accrateObjective) - accrateObjective)
         end
       end
       
@@ -156,13 +153,13 @@ function mcmcmc_iters(init, n_iter = 1000)
       # new_param = isnothing(init.fixed) ? modif : ifelse.(ismissing.(init.fixed), modif, init.fixed)
 
       # Avec fixed en impliqué dans 
-      new_param = modifier(chains[chain].param_actu, width[ifelse(chains[chain].etat == "chaud", 2, 1)][chain] )
+      new_param = modifier(chains[chain].param_actu, width[ifelse(chains[chain].etat == "chaud", 1, 2)][chain] )
       transformed = init.transformer(new_param)
       
       # test = @timed init.loglikelyhood(new_param)
       # valeur = test.value
       # calc_logl[(i-1)*n_chains + chain] = test.time
-      valeur = init.loglikelyhood(transformed) #+ init.prior(new_param)
+      valeur = init.loglikelyhood(transformed) + init.prior(new_param)
 
 
       if isnan(valeur) || ismissing(valeur)
@@ -194,12 +191,12 @@ function mcmcmc_iters(init, n_iter = 1000)
       iter_nb[i*n_chains + chain] = i
     end
     
-    #les chaines avec le succes le plus eleve (proba ou likelyhood) deviennent des chaines chaudes
+    #les chaines avec le succes le plus eleve (proba ou likelyhood) deviennent des chaines froides
     # invperm(sortperm(A)) donne rank de A
     ordre_succes = invperm(sortperm( getfield.(chains, :succes_actu) ))
 
     for chain in Base.OneTo(n_chains)
-      chains[chain].etat = ordre_succes[chain] > (n_chains - init.nb_chaud) ? "chaud" : "froid"
+      chains[chain].etat = ordre_succes[chain] > (n_chains - init.nb_cold) ? "froid" : "chaud"
     end
     # a regler
     etat[i*n_chains .+ Vector(1:n_chains)] = getfield.(chains, :etat) #[all_modeles$chain_nb[-seq_along(all_modeles$etat)]]
@@ -207,7 +204,7 @@ function mcmcmc_iters(init, n_iter = 1000)
   end
   print("\n")
 
-  return mcmcmc_result(data, succes, chain_nb, iter_nb, etat, modeles, valide, init.nb_chaud, init.fixed)
+  return mcmcmc_result(data, succes, chain_nb, iter_nb, etat, modeles, valide, init.nb_cold, init.fixed)
   # return (calc_logl, calc_modif, calc_proba, calc_chain, calc_iter)
   
 end
