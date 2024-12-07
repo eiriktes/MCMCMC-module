@@ -34,18 +34,6 @@ function dpois(x, lambda)
   # ifelse.(x .== 0 .&& lambda .== 0, 0, x .* log.(lambda) .- lambda .- lfactorial.(x))
 end
 
-# dpois(12, 6)
-# ntest = 1000
-# test_d = Vector{Float64}(undef, ntest)
-# for i in 1:ntest
-#   test = @timed dbinom(convert.(Int16,round.(rand(8000)*10)), 10, rand(8000))
-#   test_d[i] = test.time
-# end
-
-# mean_t = sum(test_d)/ntest
-# sqrt(sum((test_d .- mean_t).^2)/ntest)
-# histogram!(test_d)
-# xlims!(0,0.001)
 
 
 function dbinom(x, size, p)

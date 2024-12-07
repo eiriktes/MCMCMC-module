@@ -85,12 +85,7 @@ function mcmcmc_iters(init, n_iter = 1000)
   n_param = size(init.modeles, 1)
   data = init.data
 
-  # calc_logl = Vector{Number}(undef,n_estim)
-  # calc_modif = Vector{Number}(undef,n_estim)
-  # calc_proba = Vector{Number}(undef,n_estim)
-  # calc_chain = Vector{Number}(undef,n_estim)
-  # calc_iter = Vector{Number}(undef,n_estim)
-
+  
   # vecteurs de resultats
   modeles = zeros(n_param, n_estim + n_chains)
   modeles[:, 1:n_chains] = init.modeles
@@ -144,10 +139,7 @@ function mcmcmc_iters(init, n_iter = 1000)
       # calc_iter[(i-1)*n_chains + chain] = i
 
       # cree un nouveau modele et regarde sa likelyhood
-      # test = @timed modifier(chains[chain].param_actu, chains[chain].etat)
-      # modif = test.value
-      #calc_modif[(i-1)*n_chains + chain] = test.time
-
+     
       # Avec fixed dans boucle
       # modif = modifier(chains[chain].param_actu, width[ifelse(chains[chain].etat == "chaud", 2, 1)][chain] )
       # new_param = isnothing(init.fixed) ? modif : ifelse.(ismissing.(init.fixed), modif, init.fixed)
@@ -156,19 +148,12 @@ function mcmcmc_iters(init, n_iter = 1000)
       new_param = modifier(chains[chain].param_actu, width[ifelse(chains[chain].etat == "chaud", 1, 2)][chain] )
       transformed = init.transformer(new_param)
       
-      # test = @timed init.loglikelyhood(new_param)
-      # valeur = test.value
-      # calc_logl[(i-1)*n_chains + chain] = test.time
       valeur = init.loglikelyhood(transformed) + init.prior(new_param)
 
 
       if isnan(valeur) || ismissing(valeur)
         valeur = -Inf
       end
-      
-      # test = @timed metropolis_log(chains[chain].succes_actu, valeur) # metropolis vus que probas de x -> x´ et x´ -> x est la même
-      # calc_proba[(i-1)*n_chains + chain] = test.time
-      # proba = test.value
 
       proba = metropolis_log(chains[chain].succes_actu, valeur) # metropolis vus que probas de x -> x´ et x´ -> x est la même
       
@@ -205,6 +190,5 @@ function mcmcmc_iters(init, n_iter = 1000)
   print("\n")
 
   return mcmcmc_result(data, succes, chain_nb, iter_nb, etat, modeles, valide, init.nb_cold, init.fixed)
-  # return (calc_logl, calc_modif, calc_proba, calc_chain, calc_iter)
-  
+    
 end
